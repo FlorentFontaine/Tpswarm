@@ -1,0 +1,44 @@
+version: '3.7'
+
+services:
+  traefik:
+    image: traefik:1.7.12
+    volumes:
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+      - type: bind
+        source: ./config-production.toml
+        target: /traefik.toml
+      - type: bind
+        source: ./acme.json
+        target: /acme.json
+    ports:
+      - 80:80
+      - 443:443
+    deploy:
+      restart_policy:
+        condition: on-failure
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role==worker
+#      labels:
+#        - "traefik.port=8080"
+#        - "traefik.frontend.entryPoints=https"
+#        - "traefik.enable=true"
+#        - "traefik.weight=10"
+#        - "traefik.frontend.rule=Host:traefik.DOMAIN_HERE.COM"
+#        - "traefik.backend=traefik-PREFIX"
+    # à enlever les commentaires si on veut utiliser le DNS
+#    environment:
+#      DO_AUTH_TOKEN: DIGITALOCEAN_KEY
+    networks:
+      - wp
+
+networks:
+  wp:
+    name: wp-traefik
+    driver: overlay
+    external: true

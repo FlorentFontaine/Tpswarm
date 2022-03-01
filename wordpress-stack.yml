@@ -1,0 +1,64 @@
+version: '3.7'
+
+services:
+  db:
+    image: mysql:${MYSQL_VERSION:-5.7}
+    volumes:
+      - db_data:/var/lib/mysql
+    deploy:
+      placement:
+        constraints: [node.role == worker]
+      replicas: 1
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-wordpress}
+      MYSQL_USER: ${MYSQL_USER:-wordpress}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-wordpress}
+    networks:
+      - wp
+
+  wordpress:
+    image: wordpress:${WORDPRESS_VERSION:-latest}
+    deploy:
+      placement:
+        constraints: [node.role == worker]
+      replicas: 1
+      update_config:
+        parallelism: 2
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+      labels:
+        - "traefik.port=80"
+        - "traefik.weight=10"
+        - "traefik.frontend.rule=PathPrefixStrip:/;"
+        - "traefik.docker.network=wp"
+        - "traefik.frontend.entryPoints=https"
+        - "traefik.enable=true"
+        - "traefik.passHostHeader=true"
+        - "traefik.backend=wordpress"
+        - "traefik.backend.loadbalancer.method=drr"
+        - "traefik.backend.loadbalancer.stickiness=true"
+        - "traefik.backend.loadbalancer.stickiness.cookieName=wp-monster"
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_NAME: ${WORDPRESS_DB_NAME:-wordpress}
+      WORDPRESS_DB_USER: ${WORDPRESS_DB_USER:-wordpress}
+      WORDPRESS_DB_PASSWORD: ${WORDPRESS_DB_PASSWORD:-wordpress}
+      WORDPRESS_TABLE_PREFIX: ${WORDPRESS_TABLE_PREFIX:-wp_}
+    networks:
+      - wp
+
+networks:
+  wp:
+    name: wp-traefik
+    driver: overlay
+    external: true
+
+volumes:
+  db_data:

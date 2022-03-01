@@ -1,0 +1,41 @@
+version: '3.7'
+
+services:
+  db:
+    image: mysql:${MYSQL_VERSION:-5.7}
+    volumes:
+      - ./db_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${WP_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${WP_DB_NAME:-wordpress}
+      MYSQL_USER: ${WP_DB_USER:-wordpress}
+      MYSQL_PASSWORD: ${WP_DB_PASSWORD:-wordpress}
+    networks:
+      - wp
+
+  wordpress:
+    image: wordpress:${WP_VERSION:-latest}
+    volumes:
+      - ./wp-content:/var/www/html/wp-content
+    labels:
+      - "traefik.frontend.entryPoints=https"
+      - "traefik.enable=true"
+      - "traefik.weight=10"
+      - "traefik.frontend.rule=Host:wordpress.docker.localhost"
+      - "traefik.backend=wordpress-localhost"
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_NAME: ${WP_DB_NAME:-wordpress}
+      WORDPRESS_DB_USER: ${WP_DB_USER:-wordpress}
+      WORDPRESS_DB_PASSWORD: ${WP_DB_PASSWORD:-wordpress}
+      WORDPRESS_TABLE_PREFIX: ${WORDPRESS_TABLE_PREFIX:-wp_}
+    depends_on:
+      - db
+    networks:
+      - wp
+
+networks:
+  wp:
+    name: wp-traefik-local
+    driver: bridge
+    external: true
